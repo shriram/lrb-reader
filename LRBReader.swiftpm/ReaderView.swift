@@ -67,6 +67,17 @@ struct ReaderView: View {
                         Image(systemName: isCurrentBookmarked ? "bookmark.fill" : "bookmark")
                     }
                     .disabled(webState.currentURL == nil)
+
+                    ShareLink(
+                        item: webState.currentURL ?? URL(string: "https://www.lrb.co.uk")!,
+                        subject: Text(webState.currentTitle),
+                        preview: SharePreview(webState.currentTitle.isEmpty
+                                              ? "London Review of Books"
+                                              : webState.currentTitle)
+                    ) {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                    .disabled(webState.currentURL == nil)
                 }
             }
         }
