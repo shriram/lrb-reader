@@ -36,10 +36,29 @@ struck through wherever they appear on LRB pages.
 
 ## Running it
 
-Open `LRBReader.swiftpm/Package.swift` in Xcode and run on the iPad
-simulator, or open the package on iPad in Swift Playgrounds and tap
-Run.
+**On the iPad itself (recommended — free, no expiry):**
 
-Installing on a real iPad signed with a free Apple ID gives a 7-day
-signing expiry; the paid Apple Developer Program ($99/yr) extends that
-to a year.
+1. Get the `LRBReader.swiftpm` package onto your iPad (e.g. via
+   iCloud Drive, then open from the Files app)
+2. Tap to open it in **Swift Playgrounds**
+3. Tap **Run** (▶) — the app launches full-screen
+
+The app runs inside Swift Playgrounds' sandbox. Swift Playgrounds is
+itself an App Store app, so it never expires and requires no Apple
+Developer Program enrollment. The only friction is that you launch
+the app through Swift Playgrounds rather than from the home screen.
+
+**On the Mac simulator (for development):**
+
+Open `LRBReader.swiftpm/Package.swift` in Xcode and run on the iPad
+simulator.
+
+**Installing as a standalone home-screen app (optional):**
+
+Going this route requires Apple's signing:
+
+- Free Apple ID via Xcode: 7-day expiry per signing (rebuild weekly)
+- Paid Apple Developer Program ($99/yr): 1-year expiry per signing
+
+This is *not* required for normal use — the Swift Playgrounds path
+above covers that.
