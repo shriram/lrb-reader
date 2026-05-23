@@ -7,6 +7,9 @@ final class Issue {
     var volume: Int
     var number: Int
     var fetchedAt: Date
+    /// Set once we've fetched and parsed this issue's TOC. Until then, we don't
+    /// know the article list, so progress counts are meaningless.
+    var articlesFetchedAt: Date?
 
     init(volume: Int, number: Int, fetchedAt: Date = .now) {
         self.volume = volume

@@ -7,6 +7,6 @@ struct LRBReaderApp: App {
         WindowGroup {
             ContentView()
         }
-        .modelContainer(for: [Bookmark.self, Issue.self, ReadArticle.self])
+        .modelContainer(for: [Bookmark.self, Issue.self, ReadArticle.self, Article.self])
     }
 }

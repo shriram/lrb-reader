@@ -7,7 +7,7 @@ final class ReadArticle {
     var readAt: Date
 
     init(url: URL, readAt: Date = .now) {
-        self.urlString = url.absoluteString
+        self.urlString = url.canonicalArticleString
         self.readAt = readAt
     }
 }

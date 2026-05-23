@@ -26,9 +26,10 @@ struct WebView: UIViewRepresentable {
     let initialURL: URL
     let readUrls: Set<String>
     let onMarkRead: (URL) -> Void
+    let onDiscoverArticles: ([URL]) -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(state: state, onMarkRead: onMarkRead)
+        Coordinator(state: state, onMarkRead: onMarkRead, onDiscoverArticles: onDiscoverArticles)
     }
 
     func makeUIView(context: Context) -> WKWebView {
@@ -36,6 +37,10 @@ struct WebView: UIViewRepresentable {
         // Default WKWebsiteDataStore persists cookies across launches, so
         // logging in to LRB once should stick.
         config.websiteDataStore = .default()
+
+        let contentController = WKUserContentController()
+        contentController.add(context.coordinator, name: "lrbArticles")
+        config.userContentController = contentController
 
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
@@ -48,9 +53,10 @@ struct WebView: UIViewRepresentable {
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
-        // Keep coordinator's read-URL set in sync with SwiftData.
+        // Keep coordinator's read-URL set and callbacks in sync with the SwiftUI side.
         context.coordinator.readUrls = readUrls
         context.coordinator.onMarkRead = onMarkRead
+        context.coordinator.onDiscoverArticles = onDiscoverArticles
 
         // Drain any pending action from the SwiftUI side.
         guard let action = state.pendingAction else { return }
@@ -69,19 +75,23 @@ struct WebView: UIViewRepresentable {
     }
 
     @MainActor
-    final class Coordinator: NSObject, WKNavigationDelegate {
+    final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         let state: WebViewState
         var readUrls: Set<String> = []
         var onMarkRead: (URL) -> Void
+        var onDiscoverArticles: ([URL]) -> Void
         weak var webView: WKWebView? {
             didSet { observeWebView() }
         }
         private var observations: [NSKeyValueObservation] = []
         private var markReadTask: Task<Void, Never>?
 
-        init(state: WebViewState, onMarkRead: @escaping (URL) -> Void) {
+        init(state: WebViewState,
+             onMarkRead: @escaping (URL) -> Void,
+             onDiscoverArticles: @escaping ([URL]) -> Void) {
             self.state = state
             self.onMarkRead = onMarkRead
+            self.onDiscoverArticles = onDiscoverArticles
         }
 
         private func observeWebView() {
@@ -114,6 +124,7 @@ struct WebView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             injectReadIndicatorJS(into: webView)
+            injectArticleScrapingJS(into: webView)
 
             // If this page is an article, schedule a delayed mark-as-read.
             // We wait 5 seconds so accidental clicks don't count.
@@ -128,7 +139,6 @@ struct WebView: UIViewRepresentable {
         }
 
         private func injectReadIndicatorJS(into webView: WKWebView) {
-            // Encode the read URL set as JSON so we don't have to worry about escaping.
             let jsonData = (try? JSONSerialization.data(withJSONObject: Array(readUrls))) ?? Data("[]".utf8)
             let urlsJson = String(data: jsonData, encoding: .utf8) ?? "[]"
             let js = """
@@ -147,6 +157,42 @@ struct WebView: UIViewRepresentable {
             })();
             """
             webView.evaluateJavaScript(js, completionHandler: nil)
+        }
+
+        /// Find every link on the page that looks like an LRB article and ship the
+        /// list back to Swift. Lets us learn an issue's contents the first time we open it.
+        private func injectArticleScrapingJS(into webView: WKWebView) {
+            let js = """
+            (function() {
+              try {
+                const articleRegex = /^\\/the-paper\\/v\\d+\\/n\\d+\\/.+/;
+                const seen = new Set();
+                document.querySelectorAll('a[href]').forEach(a => {
+                  try {
+                    const u = new URL(a.href, location.origin);
+                    if (u.host === location.host && articleRegex.test(u.pathname)) {
+                      seen.add(u.origin + u.pathname);
+                    }
+                  } catch (e) { /* skip */ }
+                });
+                if (seen.size > 0) {
+                  window.webkit.messageHandlers.lrbArticles.postMessage(Array.from(seen));
+                }
+              } catch (e) { /* swallow */ }
+            })();
+            """
+            webView.evaluateJavaScript(js, completionHandler: nil)
+        }
+
+        // MARK: WKScriptMessageHandler
+
+        func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+            guard message.name == "lrbArticles",
+                  let strings = message.body as? [String] else { return }
+            let urls = strings.compactMap { URL(string: $0) }.filter { $0.isLRBArticle }
+            if !urls.isEmpty {
+                onDiscoverArticles(urls)
+            }
         }
     }
 }

@@ -5,6 +5,7 @@ struct ReaderView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Bookmark.addedAt, order: .reverse) private var bookmarks: [Bookmark]
     @Query private var readArticles: [ReadArticle]
+    @Query private var articles: [Article]
 
     let initialURL: URL
     let sessionId: UUID
@@ -21,7 +22,8 @@ struct ReaderView: View {
                 state: webState,
                 initialURL: initialURL,
                 readUrls: readUrlSet,
-                onMarkRead: markRead
+                onMarkRead: markRead,
+                onDiscoverArticles: discoverArticles
             )
             .ignoresSafeArea(edges: .bottom)
             .id(sessionId)
@@ -52,6 +54,13 @@ struct ReaderView: View {
                     }
 
                     Button {
+                        toggleReadStatus()
+                    } label: {
+                        Image(systemName: isCurrentRead ? "archivebox.fill" : "archivebox")
+                    }
+                    .disabled(!currentIsArticle)
+
+                    Button {
                         toggleBookmark()
                     } label: {
                         Image(systemName: isCurrentBookmarked ? "bookmark.fill" : "bookmark")
@@ -67,8 +76,6 @@ struct ReaderView: View {
     }
 
     private var backIconName: String {
-        // When at the bottom of WebView history and we came from another tab,
-        // surface a different glyph so the action ("return to Issues") is clearer.
         if webState.canGoBack { return "chevron.left" }
         if originTab != nil { return "arrow.uturn.left" }
         return "chevron.left"
@@ -80,6 +87,16 @@ struct ReaderView: View {
         } else if let tab = originTab {
             onReturnToOrigin(tab)
         }
+    }
+
+    private var currentIsArticle: Bool {
+        webState.currentURL?.isLRBArticle == true
+    }
+
+    private var isCurrentRead: Bool {
+        guard let url = webState.currentURL else { return false }
+        let key = url.canonicalArticleString
+        return readArticles.contains { $0.urlString == key }
     }
 
     private var isCurrentBookmarked: Bool {
@@ -97,9 +114,36 @@ struct ReaderView: View {
         }
     }
 
+    private func toggleReadStatus() {
+        guard let url = webState.currentURL else { return }
+        let key = url.canonicalArticleString
+        if let existing = readArticles.first(where: { $0.urlString == key }) {
+            modelContext.delete(existing)
+        } else {
+            // Reuse markRead so we go through the same insert + ensure-Article path.
+            markRead(url)
+        }
+    }
+
     private func markRead(_ url: URL) {
-        let key = url.absoluteString
-        if readArticles.contains(where: { $0.urlString == key }) { return }
-        modelContext.insert(ReadArticle(url: url))
+        let key = url.canonicalArticleString
+        if !readArticles.contains(where: { $0.urlString == key }) {
+            modelContext.insert(ReadArticle(url: url))
+        }
+        // Also ensure an Article record exists, so this single read counts toward
+        // its issue's completeness even if we never opened the TOC.
+        if let issuePath = url.lrbIssuePath,
+           !articles.contains(where: { $0.urlString == key }) {
+            modelContext.insert(Article(urlString: key, issuePath: issuePath))
+        }
+    }
+
+    private func discoverArticles(_ urls: [URL]) {
+        let existing = Set(articles.map(\.urlString))
+        for url in urls {
+            let key = url.canonicalArticleString
+            guard !existing.contains(key), let issuePath = url.lrbIssuePath else { continue }
+            modelContext.insert(Article(urlString: key, issuePath: issuePath))
+        }
     }
 }
