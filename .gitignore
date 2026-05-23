@@ -1,0 +1,16 @@
+# macOS
+.DS_Store
+
+# Swift build artifacts
+.build/
+Packages/
+*.xcodeproj
+
+# Xcode / Swift Playgrounds user state inside .swiftpm packages
+**/.swiftpm/xcode/
+**/.swiftpm/configuration/
+**/xcuserdata/
+
+# Editor noise
+*.swp
+*~
