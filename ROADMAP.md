@@ -5,18 +5,14 @@
 These are the features being worked on now, in this order. After all four
 ship, the app should be usable enough to install and live with on iPad.
 
-1. **iCloud sync** — Bookmarks, reads, articles, and issues currently
-   live only on the device they were created on. CloudKit-backed
-   SwiftData so state syncs across devices and survives reinstalls.
-
-2. **Share** — Toolbar button in the Browse view that hands the current
+1. **Share** — Toolbar button in the Browse view that hands the current
    page (URL + title) off to the system share sheet.
 
-3. **Blog tab** — Top-level tab for `https://www.lrb.co.uk/blog/`.
+2. **Blog tab** — Top-level tab for `https://www.lrb.co.uk/blog/`.
    Similar shape to Issues: list of recent posts, tap to open in
    Browse, read tracking applies.
 
-4. **"New since last" indicators** — On launch, check for new content
+3. **"New since last" indicators** — On launch, check for new content
    in Issues, Browse, and Blog. Surface unseen items with the standard
    iPad notification badge (the red dot on the tab).
 
