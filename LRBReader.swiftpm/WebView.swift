@@ -26,7 +26,8 @@ struct WebView: UIViewRepresentable {
     let initialURL: URL
     let readUrls: Set<String>
     let onMarkRead: (URL) -> Void
-    let onDiscoverArticles: ([URL]) -> Void
+    /// (pageURL, articleURLs scraped from that page)
+    let onDiscoverArticles: (URL, [URL]) -> Void
 
     func makeCoordinator() -> Coordinator {
         Coordinator(state: state, onMarkRead: onMarkRead, onDiscoverArticles: onDiscoverArticles)
@@ -79,7 +80,7 @@ struct WebView: UIViewRepresentable {
         let state: WebViewState
         var readUrls: Set<String> = []
         var onMarkRead: (URL) -> Void
-        var onDiscoverArticles: ([URL]) -> Void
+        var onDiscoverArticles: (URL, [URL]) -> Void
         weak var webView: WKWebView? {
             didSet { observeWebView() }
         }
@@ -88,7 +89,7 @@ struct WebView: UIViewRepresentable {
 
         init(state: WebViewState,
              onMarkRead: @escaping (URL) -> Void,
-             onDiscoverArticles: @escaping ([URL]) -> Void) {
+             onDiscoverArticles: @escaping (URL, [URL]) -> Void) {
             self.state = state
             self.onMarkRead = onMarkRead
             self.onDiscoverArticles = onDiscoverArticles
@@ -188,11 +189,12 @@ struct WebView: UIViewRepresentable {
 
         func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
             guard message.name == "lrbArticles",
-                  let strings = message.body as? [String] else { return }
+                  let strings = message.body as? [String],
+                  let pageURL = webView?.url else { return }
             let urls = strings.compactMap { URL(string: $0) }.filter { $0.isLRBArticle }
-            if !urls.isEmpty {
-                onDiscoverArticles(urls)
-            }
+            // Even if `urls` is empty we still want to signal the page visit,
+            // so the receiver can record "we've seen this TOC".
+            onDiscoverArticles(pageURL, urls)
         }
     }
 }

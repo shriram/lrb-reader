@@ -6,6 +6,7 @@ struct ReaderView: View {
     @Query(sort: \Bookmark.addedAt, order: .reverse) private var bookmarks: [Bookmark]
     @Query private var readArticles: [ReadArticle]
     @Query private var articles: [Article]
+    @Query private var issues: [Issue]
 
     let initialURL: URL
     let sessionId: UUID
@@ -138,12 +139,20 @@ struct ReaderView: View {
         }
     }
 
-    private func discoverArticles(_ urls: [URL]) {
+    private func discoverArticles(from pageURL: URL, urls: [URL]) {
         let existing = Set(articles.map(\.urlString))
         for url in urls {
             let key = url.canonicalArticleString
             guard !existing.contains(key), let issuePath = url.lrbIssuePath else { continue }
             modelContext.insert(Article(urlString: key, issuePath: issuePath))
+        }
+        // If we're on an issue's TOC, this visit gives us the full article list
+        // for that issue. Mark it loaded so counts appear immediately, regardless
+        // of whether the background year-fetch ran or succeeded.
+        if let tocPath = pageURL.issueTOCPath,
+           let issue = issues.first(where: { $0.path == tocPath }),
+           issue.articlesFetchedAt == nil {
+            issue.articlesFetchedAt = .now
         }
     }
 }

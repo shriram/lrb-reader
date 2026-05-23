@@ -26,4 +26,21 @@ extension URL {
             && parts[1].hasPrefix("v")
             && parts[2].hasPrefix("n")
     }
+
+    /// True if this URL is exactly an issue's table-of-contents page (3 parts).
+    var isLRBIssueTOC: Bool {
+        guard host?.contains("lrb.co.uk") == true else { return false }
+        let parts = path.split(separator: "/").map(String.init)
+        return parts.count == 3
+            && parts[0] == "the-paper"
+            && parts[1].hasPrefix("v")
+            && parts[2].hasPrefix("n")
+    }
+
+    /// If this URL is an issue TOC, returns its canonical issue path; else nil.
+    var issueTOCPath: String? {
+        guard isLRBIssueTOC else { return nil }
+        let parts = path.split(separator: "/").map(String.init)
+        return "/\(parts[0])/\(parts[1])/\(parts[2])"
+    }
 }
