@@ -13,6 +13,14 @@ final class WebViewState {
     // Commands the UI can send; the coordinator observes these.
     var pendingAction: Action?
 
+    /// Closure installed by WebView.makeUIView that re-runs the read-indicator
+    /// JS on the live WKWebView with a fresh set of read URLs. ReaderView
+    /// calls this from .onChange(of: readUrlSet), which fires on body
+    /// re-evaluation — including for off-screen tabs whose updateUIView
+    /// SwiftUI may skip. Marked @ObservationIgnored so reassignment does not
+    /// trigger view updates.
+    @ObservationIgnored var restyleTrigger: ((Set<String>) -> Void)?
+
     enum Action: Equatable {
         case goBack
         case goForward
@@ -48,6 +56,18 @@ struct WebView: UIViewRepresentable {
         webView.allowsBackForwardNavigationGestures = true
         context.coordinator.webView = webView
         context.coordinator.readUrls = readUrls
+
+        // Install the direct-restyle trigger. ReaderView calls this from
+        // .onChange to force a JS re-injection without going through
+        // updateUIView (which SwiftUI may skip for off-screen views).
+        state.restyleTrigger = { [weak coord = context.coordinator] urls in
+            guard let coord = coord,
+                  let wv = coord.webView,
+                  !wv.isLoading,
+                  wv.url != nil else { return }
+            coord.readUrls = urls
+            coord.injectReadIndicatorJS(into: wv)
+        }
 
         webView.load(URLRequest(url: initialURL))
         return webView

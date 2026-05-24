@@ -44,6 +44,13 @@ struct ReaderView: View {
             onDiscoverArticles: discoverArticles
         )
         .ignoresSafeArea(edges: .bottom)
+        .onChange(of: readUrlSet) { _, newSet in
+            // Direct-restyle path. The WebView's updateUIView already has a
+            // change-detection re-inject for visible tabs; this .onChange
+            // path is what catches off-screen tabs where updateUIView may
+            // not fire reliably.
+            webState.restyleTrigger?(newSet)
+        }
         .navigationTitle(webState.currentTitle.isEmpty ? "London Review of Books" : webState.currentTitle)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
