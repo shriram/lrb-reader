@@ -1,7 +1,22 @@
 # LRB Reader
 
-Personal iPad app for reading the London Review of Books. Wraps the LRB
-website with an archive browser, bookmarks, and read tracking.
+This is a wrapper around the Web site of the London Review of Books (LRB).
+
+I was frustrated by the differences in
+features between the iPad app and the website (e.g., on the Web
+you can read every article from the very first edition in 1979, and
+this actually makes for very interesting reading). The app doesn't
+go back that far, it doesn't track what you have already read, it
+doesn't include the blog, etc. Thus, I found myself constantly
+switching between the two.
+
+To fix that, I've designed this app.
+
+This app does *not* provide free access to the LRB—you still need a
+subscription. It is also currently not intended for off-line use
+(that's planned for the future). Finally, it is *in no way* endorsed
+by the LRB itself! It's strictly meant as a customized *personal*
+interface to the LRB that automates my preferences.
 
 ## What's in it
 
