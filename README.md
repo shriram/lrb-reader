@@ -42,8 +42,8 @@ clears every read mark for the issue.
 
 - Xcode 17+ on macOS, or Swift Playgrounds 4+ on iPad, to build
 - iPadOS 17+ to run
-- An LRB subscription — you sign in to lrb.co.uk inside the app once;
-  the cookie persists
+- An LRB subscription — you sign in to lrb.co.uk on the Web per normal
+  (the app does not handle sign-in nor record your credentials)
 
 ## Assumes
 
