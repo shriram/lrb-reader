@@ -30,7 +30,3 @@ Items captured for later. Not committed to; pick up when there is a reason.
   rather than per-year on expand
 - **Background pre-fetching** across years (same idea, automatic)
 
-### Open design questions
-- **Back-button glyph** when at the bottom of WebView history with the
-  return-to-tab fallback. Currently `arrow.uturn.left` (↶); alternatives
-  are keeping `chevron.left` always, or labeling "Issues ←".

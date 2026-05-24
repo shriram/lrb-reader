@@ -1,29 +1,29 @@
 import SwiftUI
 import SwiftData
 
+/// The WebView pane with its toolbar. Used as:
+///   - the entire content of the Blog and Web tabs (canDismiss: false)
+///   - the destination pushed when opening an issue or bookmark
+///     (canDismiss: true)
+/// Always expects a NavigationStack to be provided by its parent.
 struct ReaderView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
     @Query(sort: \Bookmark.addedAt, order: .reverse) private var bookmarks: [Bookmark]
     @Query private var readArticles: [ReadArticle]
     @Query private var articles: [Article]
     @Query private var issues: [Issue]
 
     let initialURL: URL
-    let sessionId: UUID
-    let originTab: ContentView.Tab?
-    let onReturnToOrigin: (ContentView.Tab) -> Void
+    /// True when this view was pushed onto a NavigationStack (so back can pop).
+    /// False when it's the root of a tab's stack (so back is WebView-only).
+    var canDismiss: Bool = false
 
     @State private var webState = WebViewState()
     @State private var pendingIssueArchive: Issue?
 
-    /// The set of URLs that should appear as "read" in the UI. This is the
-    /// union of:
-    ///   - URLs the user actually marked read (auto-dwell, manual toggle, etc.)
-    ///   - all articles known to belong to an archived issue
-    ///
-    /// Archive flips a single flag on Issue; we never insert ReadArticles for
-    /// the bulk action. That way unarchive is a clean reverse and any reads
-    /// the user did individually survive an archive/unarchive cycle.
+    /// Union of actual ReadArticle URLs and every Article whose issuePath is
+    /// archived. See README / design discussion for why this is the right model.
     private var readUrlSet: Set<String> {
         var set = Set(readArticles.map(\.urlString))
         let archivedPaths = Set(issues.filter { $0.archivedAt != nil }.map(\.path))
@@ -36,119 +36,113 @@ struct ReaderView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            WebView(
-                state: webState,
-                initialURL: initialURL,
-                readUrls: readUrlSet,
-                onMarkRead: markRead,
-                onDiscoverArticles: discoverArticles
-            )
-            .ignoresSafeArea(edges: .bottom)
-            .id(sessionId)
-            .navigationTitle(webState.currentTitle.isEmpty ? "London Review of Books" : webState.currentTitle)
-            .navigationBarTitleDisplayMode(.inline)
-            .confirmationDialog(
-                dialogTitle,
-                isPresented: Binding(
-                    get: { pendingIssueArchive != nil },
-                    set: { if !$0 { pendingIssueArchive = nil } }
-                ),
-                titleVisibility: .visible,
-                presenting: pendingIssueArchive
-            ) { issue in
-                if issue.archivedAt != nil {
-                    Button("Unarchive (keep my reads)") {
-                        issue.archivedAt = nil
-                    }
-                    Button("Unarchive (clear all reads)", role: .destructive) {
-                        unarchiveAndResetReads(issue)
-                    }
-                } else {
-                    Button("Archive", role: .destructive) {
-                        archiveIssueFromReader(issue)
-                    }
+        WebView(
+            state: webState,
+            initialURL: initialURL,
+            readUrls: readUrlSet,
+            onMarkRead: markRead,
+            onDiscoverArticles: discoverArticles
+        )
+        .ignoresSafeArea(edges: .bottom)
+        .navigationTitle(webState.currentTitle.isEmpty ? "London Review of Books" : webState.currentTitle)
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItemGroup(placement: .navigationBarLeading) {
+                Button {
+                    handleBack()
+                } label: {
+                    Label("Back", systemImage: "chevron.left")
                 }
-                Button("Cancel", role: .cancel) {}
+                .disabled(!backEnabled)
+
+                Button {
+                    webState.pendingAction = .goForward
+                } label: {
+                    Label("Forward", systemImage: "chevron.right")
+                }
+                .disabled(!webState.canGoForward)
             }
-            .toolbar {
-                ToolbarItemGroup(placement: .navigationBarLeading) {
-                    Button {
-                        handleBack()
-                    } label: {
-                        Label("Back", systemImage: backIconName)
-                    }
-                    .disabled(!backEnabled)
 
-                    Button {
-                        webState.pendingAction = .goForward
-                    } label: {
-                        Label("Forward", systemImage: "chevron.right")
-                    }
-                    .disabled(!webState.canGoForward)
+            ToolbarItemGroup(placement: .navigationBarTrailing) {
+                Button {
+                    webState.pendingAction = .reload
+                } label: {
+                    Label("Reload", systemImage: "arrow.clockwise")
                 }
 
-                ToolbarItemGroup(placement: .navigationBarTrailing) {
-                    Button {
-                        webState.pendingAction = .reload
-                    } label: {
-                        Label("Reload", systemImage: "arrow.clockwise")
-                    }
+                Button {
+                    handleArchiveTap()
+                } label: {
+                    Label(archiveLabel, systemImage: archiveIcon)
+                }
+                .disabled(!archiveEnabled)
 
-                    Button {
-                        handleArchiveTap()
-                    } label: {
-                        Label(archiveLabel, systemImage: archiveIcon)
-                    }
-                    .disabled(!archiveEnabled)
+                Button {
+                    toggleBookmark()
+                } label: {
+                    Label(isCurrentBookmarked ? "Remove Bookmark" : "Bookmark",
+                          systemImage: isCurrentBookmarked ? "bookmark.fill" : "bookmark")
+                }
+                .disabled(webState.currentURL == nil)
 
-                    Button {
-                        toggleBookmark()
-                    } label: {
-                        Label(isCurrentBookmarked ? "Remove Bookmark" : "Bookmark",
-                              systemImage: isCurrentBookmarked ? "bookmark.fill" : "bookmark")
-                    }
-                    .disabled(webState.currentURL == nil)
-
-                    ShareLink(
-                        item: webState.currentURL ?? URL(string: "https://www.lrb.co.uk")!,
-                        subject: Text(webState.currentTitle),
-                        preview: SharePreview(webState.currentTitle.isEmpty
-                                              ? "London Review of Books"
-                                              : webState.currentTitle)
-                    ) {
-                        Label("Share", systemImage: "square.and.arrow.up")
-                    }
-                    .disabled(webState.currentURL == nil)
+                ShareLink(
+                    item: webState.currentURL ?? URL(string: "https://www.lrb.co.uk")!,
+                    subject: Text(webState.currentTitle),
+                    preview: SharePreview(webState.currentTitle.isEmpty
+                                          ? "London Review of Books"
+                                          : webState.currentTitle)
+                ) {
+                    Label("Share", systemImage: "square.and.arrow.up")
+                }
+                .disabled(webState.currentURL == nil)
+            }
+        }
+        .confirmationDialog(
+            dialogTitle,
+            isPresented: Binding(
+                get: { pendingIssueArchive != nil },
+                set: { if !$0 { pendingIssueArchive = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: pendingIssueArchive
+        ) { issue in
+            if issue.archivedAt != nil {
+                Button("Unarchive (keep my reads)") {
+                    issue.archivedAt = nil
+                }
+                Button("Unarchive (clear all reads)", role: .destructive) {
+                    unarchiveAndResetReads(issue)
+                }
+            } else {
+                Button("Archive", role: .destructive) {
+                    archiveIssueFromReader(issue)
                 }
             }
+            Button("Cancel", role: .cancel) {}
         }
     }
 
-    private var backEnabled: Bool {
-        webState.canGoBack || originTab != nil
-    }
+    // MARK: Back / forward
 
-    private var backIconName: String {
-        if webState.canGoBack { return "chevron.left" }
-        if originTab != nil { return "arrow.uturn.left" }
-        return "chevron.left"
+    private var backEnabled: Bool {
+        webState.canGoBack || canDismiss
     }
 
     private func handleBack() {
         if webState.canGoBack {
             webState.pendingAction = .goBack
-        } else if let tab = originTab {
-            onReturnToOrigin(tab)
+        } else if canDismiss {
+            dismiss()
         }
     }
+
+    // MARK: Archive button (contextual)
 
     private var currentIsArticle: Bool {
         webState.currentURL?.isLRBReadable == true
     }
 
-    /// The Issue record matching the current page, IF the page is exactly an
-    /// issue TOC and we already know about that issue.
     private var currentTOCIssue: Issue? {
         guard let url = webState.currentURL,
               let path = url.issueTOCPath else { return nil }
@@ -187,8 +181,6 @@ struct ReaderView: View {
     }
 
     private func archiveIssueFromReader(_ issue: Issue) {
-        // Just flip the flag — the effective-read computation will show every
-        // article in the issue as read.
         issue.archivedAt = .now
     }
 
@@ -200,10 +192,7 @@ struct ReaderView: View {
         }
     }
 
-    private var isCurrentRead: Bool {
-        guard let url = webState.currentURL else { return false }
-        return readUrlSet.contains(url.canonicalArticleString)
-    }
+    // MARK: Bookmarks
 
     private var isCurrentBookmarked: Bool {
         guard let url = webState.currentURL else { return false }
@@ -220,13 +209,19 @@ struct ReaderView: View {
         }
     }
 
+    // MARK: Read tracking
+
+    private var isCurrentRead: Bool {
+        guard let url = webState.currentURL else { return false }
+        return readUrlSet.contains(url.canonicalArticleString)
+    }
+
     private func toggleReadStatus() {
         guard let url = webState.currentURL else { return }
         let key = url.canonicalArticleString
         if let existing = readArticles.first(where: { $0.urlString == key }) {
             modelContext.delete(existing)
         } else {
-            // Reuse markRead so we go through the same insert + ensure-Article path.
             markRead(url)
         }
     }
@@ -236,8 +231,8 @@ struct ReaderView: View {
         if !readArticles.contains(where: { $0.urlString == key }) {
             modelContext.insert(ReadArticle(url: url))
         }
-        // Also ensure an Article record exists, so this single read counts toward
-        // its issue's completeness even if we never opened the TOC.
+        // Ensure an Article record exists so this read counts toward issue
+        // completeness even if we never opened the TOC.
         if let issuePath = url.lrbIssuePath,
            !articles.contains(where: { $0.urlString == key }) {
             modelContext.insert(Article(urlString: key, issuePath: issuePath))
@@ -251,13 +246,7 @@ struct ReaderView: View {
             guard !existingArticles.contains(key),
                   let issuePath = url.lrbIssuePath else { continue }
             modelContext.insert(Article(urlString: key, issuePath: issuePath))
-            // No need to also mark these as read when the issue is archived —
-            // the effective-read set (readUrlSet above) computes that union
-            // every render.
         }
-        // If we're on an issue's TOC, this visit gives us the full article list
-        // for that issue. Mark it loaded so counts appear immediately, regardless
-        // of whether the background year-fetch ran or succeeded.
         if let tocPath = pageURL.issueTOCPath,
            let issue = issues.first(where: { $0.path == tocPath }),
            issue.articlesFetchedAt == nil {

@@ -5,8 +5,6 @@ struct BookmarksView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Bookmark.addedAt, order: .reverse) private var bookmarks: [Bookmark]
 
-    let onOpen: (URL) -> Void
-
     var body: some View {
         NavigationStack {
             Group {
@@ -19,9 +17,7 @@ struct BookmarksView: View {
                 } else {
                     List {
                         ForEach(bookmarks) { bookmark in
-                            Button {
-                                onOpen(bookmark.url)
-                            } label: {
+                            NavigationLink(value: bookmark.url) {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(bookmark.title)
                                         .font(.body)
@@ -39,6 +35,9 @@ struct BookmarksView: View {
                 }
             }
             .navigationTitle("Bookmarks")
+            .navigationDestination(for: URL.self) { url in
+                ReaderView(initialURL: url, canDismiss: true)
+            }
         }
     }
 

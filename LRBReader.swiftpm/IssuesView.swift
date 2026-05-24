@@ -9,8 +9,6 @@ struct IssuesView: View {
     @Query private var allArticles: [Article]
     @Query private var allReadArticles: [ReadArticle]
 
-    let onOpen: (URL) -> Void
-
     @State private var expandedYears: Set<Int> = []
     @State private var loadingYears: Set<Int> = []
     @State private var loadErrors: [Int: String] = [:]
@@ -91,6 +89,9 @@ struct IssuesView: View {
                 }
             }
             .navigationTitle("Issues")
+            .navigationDestination(for: URL.self) { url in
+                ReaderView(initialURL: url, canDismiss: true)
+            }
             .confirmationDialog(
                 "Archive this issue?",
                 isPresented: Binding(
@@ -208,9 +209,7 @@ struct IssuesView: View {
         let complete = hasData && known > 0 && known == read
         let hasUnread = hasData && known > read
 
-        Button {
-            onOpen(issue.url)
-        } label: {
+        NavigationLink(value: issue.url) {
             HStack(spacing: 8) {
                 Text(issue.label)
                     .foregroundStyle(complete ? .secondary : .primary)
@@ -225,9 +224,6 @@ struct IssuesView: View {
                         .font(.caption.monospacedDigit())
                         .foregroundStyle(.secondary)
                 }
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
             }
             .opacity(complete ? 0.6 : 1.0)
         }

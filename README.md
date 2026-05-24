@@ -8,14 +8,23 @@ website with an archive browser, bookmarks, and read tracking.
 Tabs at the top:
 
 - **Issues** — per-year archive from 1979 onward; shows remaining-to-read
-  counts per issue and per year. Swipe a row to archive a whole issue
-  at once.
+  counts per issue and per year. Tap an issue to read it (opens within
+  the Issues tab). Swipe a row to archive a whole issue at once.
 - **Blog** — in-app web view of the LRB blog
-- **Browse** — in-app web view of lrb.co.uk. Toolbar offers reload,
-  archive (works on the current article, or on the whole issue when
-  you are on its table of contents), bookmark, and share. Cookies
-  persist, so signing in once keeps you signed in.
-- **Bookmarks** — pages you have saved via the bookmark toolbar button
+- **Web** — in-app web view starting at lrb.co.uk for free-form
+  browsing of the site. Cookies persist, so signing in once keeps
+  you signed in.
+- **Bookmarks** — pages you have saved via the bookmark toolbar
+  button. Tap a bookmark to reopen it within the Bookmarks tab.
+
+Each tab manages its own navigation: opening an issue from Issues
+stays in Issues, opening a bookmark from Bookmarks stays in Bookmarks,
+etc. The back chevron walks the current page's history, and at the
+bottom of history pops back to the list.
+
+The reader toolbar offers reload, archive (works on the current
+article, or on the whole issue when you are on its table of
+contents), bookmark, and share.
 
 Read tracking marks an article (or blog post) as read after 5 seconds
 on the page, or immediately if you tap the archive button. Read links
