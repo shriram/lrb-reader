@@ -43,4 +43,19 @@ extension URL {
         let parts = path.split(separator: "/").map(String.init)
         return "/\(parts[0])/\(parts[1])/\(parts[2])"
     }
+
+    /// True for LRB blog post URLs: /blog/YYYY/{month}/{slug}.
+    /// Excludes /blog/ index, /blog/author/..., /blog/archive, /blog/contributors.
+    var isLRBBlogPost: Bool {
+        guard host?.contains("lrb.co.uk") == true else { return false }
+        let parts = path.split(separator: "/").map(String.init)
+        guard parts.count >= 4, parts[0] == "blog" else { return false }
+        return Int(parts[1]) != nil // year component must be numeric
+    }
+
+    /// Anything we treat as "a piece you can read" — for the 5-second dwell
+    /// timer and the mark-as-read toolbar button. Read URLs themselves can
+    /// be anything (the JS indicator styles whatever's in the set); this is
+    /// the gate for *triggering* a read mark.
+    var isLRBReadable: Bool { isLRBArticle || isLRBBlogPost }
 }

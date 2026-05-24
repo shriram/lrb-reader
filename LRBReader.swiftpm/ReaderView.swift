@@ -35,14 +35,14 @@ struct ReaderView: View {
                     Button {
                         handleBack()
                     } label: {
-                        Image(systemName: backIconName)
+                        Label("Back", systemImage: backIconName)
                     }
                     .disabled(!backEnabled)
 
                     Button {
                         webState.pendingAction = .goForward
                     } label: {
-                        Image(systemName: "chevron.right")
+                        Label("Forward", systemImage: "chevron.right")
                     }
                     .disabled(!webState.canGoForward)
                 }
@@ -51,20 +51,22 @@ struct ReaderView: View {
                     Button {
                         webState.pendingAction = .reload
                     } label: {
-                        Image(systemName: "arrow.clockwise")
+                        Label("Reload", systemImage: "arrow.clockwise")
                     }
 
                     Button {
                         toggleReadStatus()
                     } label: {
-                        Image(systemName: isCurrentRead ? "archivebox.fill" : "archivebox")
+                        Label(isCurrentRead ? "Mark Unread" : "Mark Read",
+                              systemImage: isCurrentRead ? "archivebox.fill" : "archivebox")
                     }
                     .disabled(!currentIsArticle)
 
                     Button {
                         toggleBookmark()
                     } label: {
-                        Image(systemName: isCurrentBookmarked ? "bookmark.fill" : "bookmark")
+                        Label(isCurrentBookmarked ? "Remove Bookmark" : "Bookmark",
+                              systemImage: isCurrentBookmarked ? "bookmark.fill" : "bookmark")
                     }
                     .disabled(webState.currentURL == nil)
 
@@ -75,7 +77,7 @@ struct ReaderView: View {
                                               ? "London Review of Books"
                                               : webState.currentTitle)
                     ) {
-                        Image(systemName: "square.and.arrow.up")
+                        Label("Share", systemImage: "square.and.arrow.up")
                     }
                     .disabled(webState.currentURL == nil)
                 }
@@ -102,7 +104,7 @@ struct ReaderView: View {
     }
 
     private var currentIsArticle: Bool {
-        webState.currentURL?.isLRBArticle == true
+        webState.currentURL?.isLRBReadable == true
     }
 
     private var isCurrentRead: Bool {

@@ -127,9 +127,10 @@ struct WebView: UIViewRepresentable {
             injectReadIndicatorJS(into: webView)
             injectArticleScrapingJS(into: webView)
 
-            // If this page is an article, schedule a delayed mark-as-read.
-            // We wait 5 seconds so accidental clicks don't count.
-            if let url = webView.url, url.isLRBArticle {
+            // If this page is something readable (article or blog post),
+            // schedule a delayed mark-as-read. We wait 5 seconds so
+            // accidental clicks don't count.
+            if let url = webView.url, url.isLRBReadable {
                 let urlToMark = url
                 markReadTask = Task { [weak self] in
                     try? await Task.sleep(for: .seconds(5))
