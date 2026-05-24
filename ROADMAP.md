@@ -2,6 +2,19 @@
 
 Items captured for later. Not committed to; pick up when there is a reason.
 
+### Known bugs
+- **Cross-tab state inconsistency.** Marking or unmarking an article in
+  one tab does not always reliably update the same article when it is
+  shown in another tab (e.g. toolbar archive icon, page link styling
+  via injected JS, issue list count). Symptom: "sometimes shows as
+  archived and sometimes not." Suspected cause: a combination of
+  SwiftUI deferring body re-evaluation for off-screen tabs and the
+  JS re-inject only firing on detected changes to the read-URL set.
+  An "always re-inject on update" workaround made things worse
+  (likely visual flicker or thrash). Needs deeper investigation —
+  probably either a forced refresh on tab-becoming-visible, or a
+  more reliable change signal that does not depend on Set equality.
+
 ### From the original requirements
 - **Follow authors** — per-author view; some kind of "alert me when this
   author publishes" signal

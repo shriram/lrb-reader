@@ -55,6 +55,15 @@ clears every read mark for the issue.
 - **No live cross-device sync.** State propagates only via the backup
   → restore cycle.
 
+## Known limitations
+
+- **Cross-tab state inconsistency.** When the same article appears in
+  more than one tab at once (e.g. open in Web *and* reached via
+  Issues), marking or unmarking it in one tab does not always
+  reliably refresh the other tab's view of it. Toolbar icon, page
+  link styling, and list counts can briefly disagree. Workaround:
+  switch tabs again, or reload the page. Tracked in ROADMAP.
+
 ## Running it
 
 **On the iPad itself (recommended — free, no expiry):**
