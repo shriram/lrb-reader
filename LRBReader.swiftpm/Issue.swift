@@ -10,6 +10,9 @@ final class Issue {
     /// Set once we've fetched and parsed this issue's TOC. Until then, we don't
     /// know the article list, so progress counts are meaningless.
     var articlesFetchedAt: Date?
+    /// Set when the user has explicitly archived this issue. Treated as "done"
+    /// regardless of whether all articles are individually read.
+    var archivedAt: Date?
 
     init(volume: Int, number: Int, fetchedAt: Date = .now) {
         self.volume = volume

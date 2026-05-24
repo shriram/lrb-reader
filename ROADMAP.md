@@ -1,50 +1,36 @@
 # LRB Reader — Roadmap
 
-## Active (sequence for next iteration)
-
-These are the features being worked on now, in this order. After all four
-ship, the app should be usable enough to install and live with on iPad.
-
-1. **Share** — Toolbar button in the Browse view that hands the current
-   page (URL + title) off to the system share sheet.
-
-2. **Blog tab** — Top-level tab for `https://www.lrb.co.uk/blog/`.
-   Similar shape to Issues: list of recent posts, tap to open in
-   Browse, read tracking applies.
-
-3. **"New since last" indicators** — On launch, check for new content
-   in Issues, Browse, and Blog. Surface unseen items with the standard
-   iPad notification badge (the red dot on the tab).
-
-## Later (below the fold)
-
-Captured for reference. Not committed to; revisit after the active
-sequence ships.
+Items captured for later. Not committed to; pick up when there is a reason.
 
 ### From the original requirements
-- **Follow authors** — per-author view, "alert me when this author
-  publishes" signal
-- **Offline reading** — cache article HTML locally for no-network
-  reading
-- **Periodic check for new issues** — separate from #4 if we want
-  proactive checking even when the app isn't opened (would need
-  background work, which we've so far avoided)
+- **Follow authors** — per-author view; some kind of "alert me when this
+  author publishes" signal
+- **Offline reading** — cache article HTML locally for no-network reading
+- **Periodic check for new issues** — proactive notification even when the
+  app is not open; would need background work, which we have so far avoided
+
+### Reading and tracking
+- **"New since last" indicators** — on launch, check Issues and Blog for
+  unseen content; surface as red-dot tab badges. Browse needs a separate
+  definition since it has no "set" of content to compare against. Deferred
+  because it is hard to test without inducing the state.
+- **Read history view** — browse the list of articles read (data exists,
+  no UI for it)
+- **Bulk clear read state for non-archived issues** — bulk mark exists
+  (via issue archive), and unarchive offers a "clear all reads"
+  variant. No path yet for clearing reads on issues that were never
+  archived.
+- **Bookmarks sort/filter** — currently a flat list; could group by
+  issue/author, sort by added date or title
 
 ### Issues-tab polish
 - **Publication dates** next to issue numbers ("Vol. 48 No. 9 — 21 May
-  2026"). Held off because parsing dates is brittle.
-- **"Fetch everything" button** — single action to fetch all years at
-  once rather than per-year on expand
+  2026"). Held off because parsing dates from the page is brittle.
+- **"Fetch everything" button** — single action to fetch all years at once
+  rather than per-year on expand
 - **Background pre-fetching** across years (same idea, automatic)
 
 ### Open design questions
-- **Back-button glyph** when at the bottom of WebView history with
-  return-to-tab fallback. Currently `arrow.uturn.left` (↶); could keep
-  `chevron.left` always, or label "Issues ←".
-
-### Quality of life
-- **Read history view** — browse the list of articles you've read (we
-  track them, but there's no UI to see them)
-- **Way to clear or bulk-edit read state** beyond per-article toggling
-- **Bookmarks sort/filter** — currently a flat list; could group by
-  issue/author, sort by added/title, etc.
+- **Back-button glyph** when at the bottom of WebView history with the
+  return-to-tab fallback. Currently `arrow.uturn.left` (↶); alternatives
+  are keeping `chevron.left` always, or labeling "Issues ←".

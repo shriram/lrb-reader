@@ -14,6 +14,7 @@ struct IssuesView: View {
     @State private var expandedYears: Set<Int> = []
     @State private var loadingYears: Set<Int> = []
     @State private var loadErrors: [Int: String] = [:]
+    @State private var issuePendingArchive: Issue?
 
     private var years: [Int] {
         let currentYear = Calendar.current.component(.year, from: .now)
@@ -34,6 +35,12 @@ struct IssuesView: View {
 
     private func progress(forIssuePath path: String) -> (known: Int, read: Int) {
         let known = articlesByIssue[path] ?? []
+        // Archived issues are effectively all-read regardless of individual
+        // ReadArticle rows — matches the effective-read computation in
+        // ReaderView used by the JS link indicator.
+        if let issue = allIssues.first(where: { $0.path == path }), issue.archivedAt != nil {
+            return (known.count, known.count)
+        }
         let read = known.intersection(readUrlSet).count
         return (known.count, read)
     }
@@ -43,7 +50,15 @@ struct IssuesView: View {
         issue.articlesFetchedAt != nil
     }
 
+    private func isArchived(_ issue: Issue) -> Bool {
+        issue.archivedAt != nil
+    }
+
+    /// An issue is "done" if either:
+    ///   - the user explicitly archived it, OR
+    ///   - we know its full article list and every article has been read.
     private func isIssueComplete(_ issue: Issue) -> Bool {
+        if isArchived(issue) { return true }
         guard hasArticleData(issue) else { return false }
         let (known, read) = progress(forIssuePath: issue.path)
         return known > 0 && known == read
@@ -61,7 +76,9 @@ struct IssuesView: View {
 
     private func yearSummary(_ year: Int) -> YearSummary {
         let ys = issues(for: year)
-        let withData = ys.filter(hasArticleData).count
+        // Either article data exists OR the user archived the issue —
+        // both count as "we can tell whether this is done."
+        let withData = ys.filter { hasArticleData($0) || isArchived($0) }.count
         let complete = ys.filter(isIssueComplete).count
         return YearSummary(totalIssues: ys.count, withData: withData, complete: complete)
     }
@@ -74,7 +91,39 @@ struct IssuesView: View {
                 }
             }
             .navigationTitle("Issues")
+            .confirmationDialog(
+                "Archive this issue?",
+                isPresented: Binding(
+                    get: { issuePendingArchive != nil },
+                    set: { if !$0 { issuePendingArchive = nil } }
+                ),
+                presenting: issuePendingArchive
+            ) { issue in
+                Button("Mark all read", role: .destructive) {
+                    archiveIssue(issue)
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: { issue in
+                Text(archiveConfirmationMessage(for: issue))
+            }
         }
+    }
+
+    private func archiveConfirmationMessage(for issue: Issue) -> String {
+        if hasArticleData(issue) {
+            let (known, read) = progress(forIssuePath: issue.path)
+            let remaining = known - read
+            return "Mark the \(remaining) remaining article\(remaining == 1 ? "" : "s") in \(issue.label) as read."
+        } else {
+            return "Mark \(issue.label) as done. (Its article list has not been loaded; individual links will still update once you visit any page that lists them.)"
+        }
+    }
+
+    private func archiveIssue(_ issue: Issue) {
+        // Flip the flag only — progress() and ReaderView.readUrlSet both
+        // treat archived issues as effectively all-read, so the UI and the
+        // JS link indicator update without any ReadArticle inserts.
+        issue.archivedAt = .now
     }
 
     @ViewBuilder
@@ -157,6 +206,7 @@ struct IssuesView: View {
         let hasData = hasArticleData(issue)
         let (known, read) = progress(forIssuePath: issue.path)
         let complete = hasData && known > 0 && known == read
+        let hasUnread = hasData && known > read
 
         Button {
             onOpen(issue.url)
@@ -180,6 +230,16 @@ struct IssuesView: View {
                     .foregroundStyle(.tertiary)
             }
             .opacity(complete ? 0.6 : 1.0)
+        }
+        .swipeActions(edge: .trailing) {
+            if !complete {
+                Button {
+                    issuePendingArchive = issue
+                } label: {
+                    Label("Archive", systemImage: "archivebox.fill")
+                }
+                .tint(.indigo)
+            }
         }
     }
 

@@ -55,9 +55,17 @@ struct WebView: UIViewRepresentable {
 
     func updateUIView(_ webView: WKWebView, context: Context) {
         // Keep coordinator's read-URL set and callbacks in sync with the SwiftUI side.
+        let readUrlsChanged = context.coordinator.readUrls != readUrls
         context.coordinator.readUrls = readUrls
         context.coordinator.onMarkRead = onMarkRead
         context.coordinator.onDiscoverArticles = onDiscoverArticles
+
+        // If the set of read URLs changed while a page was already loaded
+        // (e.g. user archived the issue from the toolbar), re-run the
+        // styling JS so links update immediately.
+        if readUrlsChanged && !webView.isLoading && webView.url != nil {
+            context.coordinator.injectReadIndicatorJS(into: webView)
+        }
 
         // Drain any pending action from the SwiftUI side.
         guard let action = state.pendingAction else { return }
@@ -140,7 +148,7 @@ struct WebView: UIViewRepresentable {
             }
         }
 
-        private func injectReadIndicatorJS(into webView: WKWebView) {
+        func injectReadIndicatorJS(into webView: WKWebView) {
             let jsonData = (try? JSONSerialization.data(withJSONObject: Array(readUrls))) ?? Data("[]".utf8)
             let urlsJson = String(data: jsonData, encoding: .utf8) ?? "[]"
             let js = """
@@ -153,6 +161,12 @@ struct WebView: UIViewRepresentable {
                     a.style.opacity = '0.45';
                     a.style.textDecoration = 'line-through';
                     a.setAttribute('data-lrb-read', 'true');
+                  } else if (a.getAttribute('data-lrb-read') === 'true') {
+                    // Was marked previously, no longer in the read set
+                    // (e.g. the issue was just unarchived). Restore.
+                    a.style.opacity = '';
+                    a.style.textDecoration = '';
+                    a.removeAttribute('data-lrb-read');
                   }
                 });
               } catch (e) { /* swallow */ }

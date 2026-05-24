@@ -14,8 +14,26 @@ struct ReaderView: View {
     let onReturnToOrigin: (ContentView.Tab) -> Void
 
     @State private var webState = WebViewState()
+    @State private var pendingIssueArchive: Issue?
 
-    private var readUrlSet: Set<String> { Set(readArticles.map(\.urlString)) }
+    /// The set of URLs that should appear as "read" in the UI. This is the
+    /// union of:
+    ///   - URLs the user actually marked read (auto-dwell, manual toggle, etc.)
+    ///   - all articles known to belong to an archived issue
+    ///
+    /// Archive flips a single flag on Issue; we never insert ReadArticles for
+    /// the bulk action. That way unarchive is a clean reverse and any reads
+    /// the user did individually survive an archive/unarchive cycle.
+    private var readUrlSet: Set<String> {
+        var set = Set(readArticles.map(\.urlString))
+        let archivedPaths = Set(issues.filter { $0.archivedAt != nil }.map(\.path))
+        if !archivedPaths.isEmpty {
+            for article in articles where archivedPaths.contains(article.issuePath) {
+                set.insert(article.urlString)
+            }
+        }
+        return set
+    }
 
     var body: some View {
         NavigationStack {
@@ -30,6 +48,29 @@ struct ReaderView: View {
             .id(sessionId)
             .navigationTitle(webState.currentTitle.isEmpty ? "London Review of Books" : webState.currentTitle)
             .navigationBarTitleDisplayMode(.inline)
+            .confirmationDialog(
+                dialogTitle,
+                isPresented: Binding(
+                    get: { pendingIssueArchive != nil },
+                    set: { if !$0 { pendingIssueArchive = nil } }
+                ),
+                titleVisibility: .visible,
+                presenting: pendingIssueArchive
+            ) { issue in
+                if issue.archivedAt != nil {
+                    Button("Unarchive (keep my reads)") {
+                        issue.archivedAt = nil
+                    }
+                    Button("Unarchive (clear all reads)", role: .destructive) {
+                        unarchiveAndResetReads(issue)
+                    }
+                } else {
+                    Button("Archive", role: .destructive) {
+                        archiveIssueFromReader(issue)
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            }
             .toolbar {
                 ToolbarItemGroup(placement: .navigationBarLeading) {
                     Button {
@@ -55,12 +96,11 @@ struct ReaderView: View {
                     }
 
                     Button {
-                        toggleReadStatus()
+                        handleArchiveTap()
                     } label: {
-                        Label(isCurrentRead ? "Mark Unread" : "Mark Read",
-                              systemImage: isCurrentRead ? "archivebox.fill" : "archivebox")
+                        Label(archiveLabel, systemImage: archiveIcon)
                     }
-                    .disabled(!currentIsArticle)
+                    .disabled(!archiveEnabled)
 
                     Button {
                         toggleBookmark()
@@ -107,10 +147,62 @@ struct ReaderView: View {
         webState.currentURL?.isLRBReadable == true
     }
 
+    /// The Issue record matching the current page, IF the page is exactly an
+    /// issue TOC and we already know about that issue.
+    private var currentTOCIssue: Issue? {
+        guard let url = webState.currentURL,
+              let path = url.issueTOCPath else { return nil }
+        return issues.first { $0.path == path }
+    }
+
+    private var archiveEnabled: Bool {
+        currentIsArticle || currentTOCIssue != nil
+    }
+
+    private var archiveIcon: String {
+        if let issue = currentTOCIssue {
+            return issue.archivedAt != nil ? "archivebox.fill" : "archivebox"
+        }
+        return isCurrentRead ? "archivebox.fill" : "archivebox"
+    }
+
+    private var archiveLabel: String {
+        if let issue = currentTOCIssue {
+            return issue.archivedAt != nil ? "Unarchive Issue" : "Archive Issue"
+        }
+        return isCurrentRead ? "Mark Unread" : "Mark Read"
+    }
+
+    private func handleArchiveTap() {
+        if let issue = currentTOCIssue {
+            pendingIssueArchive = issue
+        } else if currentIsArticle {
+            toggleReadStatus()
+        }
+    }
+
+    private var dialogTitle: String {
+        guard let issue = pendingIssueArchive else { return "" }
+        return issue.archivedAt != nil ? "Unarchive \(issue.label)?" : "Archive \(issue.label)?"
+    }
+
+    private func archiveIssueFromReader(_ issue: Issue) {
+        // Just flip the flag — the effective-read computation will show every
+        // article in the issue as read.
+        issue.archivedAt = .now
+    }
+
+    private func unarchiveAndResetReads(_ issue: Issue) {
+        issue.archivedAt = nil
+        let issueURLs = Set(articles.filter { $0.issuePath == issue.path }.map(\.urlString))
+        for read in readArticles where issueURLs.contains(read.urlString) {
+            modelContext.delete(read)
+        }
+    }
+
     private var isCurrentRead: Bool {
         guard let url = webState.currentURL else { return false }
-        let key = url.canonicalArticleString
-        return readArticles.contains { $0.urlString == key }
+        return readUrlSet.contains(url.canonicalArticleString)
     }
 
     private var isCurrentBookmarked: Bool {
@@ -153,11 +245,15 @@ struct ReaderView: View {
     }
 
     private func discoverArticles(from pageURL: URL, urls: [URL]) {
-        let existing = Set(articles.map(\.urlString))
+        let existingArticles = Set(articles.map(\.urlString))
         for url in urls {
             let key = url.canonicalArticleString
-            guard !existing.contains(key), let issuePath = url.lrbIssuePath else { continue }
+            guard !existingArticles.contains(key),
+                  let issuePath = url.lrbIssuePath else { continue }
             modelContext.insert(Article(urlString: key, issuePath: issuePath))
+            // No need to also mark these as read when the issue is archived —
+            // the effective-read set (readUrlSet above) computes that union
+            // every render.
         }
         // If we're on an issue's TOC, this visit gives us the full article list
         // for that issue. Mark it loaded so counts appear immediately, regardless
