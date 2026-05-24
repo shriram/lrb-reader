@@ -5,15 +5,15 @@ website with an archive browser, bookmarks, and read tracking.
 
 ## What's in it
 
-Tabs at the top:
+Tabs at the top, left to right (Web is the default on launch):
 
+- **Web** — in-app web view starting at lrb.co.uk. The app opens here
+  so the first thing you see is fresh content. Cookies persist, so
+  signing in once keeps you signed in.
 - **Issues** — per-year archive from 1979 onward; shows remaining-to-read
   counts per issue and per year. Tap an issue to read it (opens within
   the Issues tab). Swipe a row to archive a whole issue at once.
-- **Blog** — in-app web view of the LRB blog
-- **Web** — in-app web view starting at lrb.co.uk for free-form
-  browsing of the site. Cookies persist, so signing in once keeps
-  you signed in.
+- **Blog** — in-app web view of the LRB blog.
 - **Bookmarks** — pages you have saved via the bookmark toolbar
   button. Tap a bookmark to reopen it within the Bookmarks tab.
 

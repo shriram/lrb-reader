@@ -1,10 +1,10 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var selectedTab: Tab = .issues
+    @State private var selectedTab: Tab = .web
 
     enum Tab: Hashable {
-        case issues, blog, web, bookmarks
+        case web, issues, blog, bookmarks
     }
 
     private let lrbHomepage = URL(string: "https://www.lrb.co.uk")!
@@ -12,6 +12,12 @@ struct ContentView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
+            NavigationStack {
+                ReaderView(initialURL: lrbHomepage)
+            }
+            .tabItem { Label("Web", systemImage: "globe") }
+            .tag(Tab.web)
+
             IssuesView()
                 .tabItem { Label("Issues", systemImage: "calendar") }
                 .tag(Tab.issues)
@@ -21,12 +27,6 @@ struct ContentView: View {
             }
             .tabItem { Label("Blog", systemImage: "newspaper") }
             .tag(Tab.blog)
-
-            NavigationStack {
-                ReaderView(initialURL: lrbHomepage)
-            }
-            .tabItem { Label("Web", systemImage: "globe") }
-            .tag(Tab.web)
 
             BookmarksView()
                 .tabItem { Label("Bookmarks", systemImage: "bookmark") }
