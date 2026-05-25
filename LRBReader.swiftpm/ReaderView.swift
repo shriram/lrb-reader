@@ -21,6 +21,7 @@ struct ReaderView: View {
 
     @State private var webState = WebViewState()
     @State private var pendingIssueArchive: Issue?
+    @State private var showingShareSheet = false
 
     /// Union of actual ReadArticle URLs and every Article whose issuePath is
     /// archived. See README / design discussion for why this is the right model.
@@ -93,16 +94,20 @@ struct ReaderView: View {
                 }
                 .disabled(webState.currentURL == nil)
 
-                ShareLink(
-                    item: webState.currentURL ?? URL(string: "https://www.lrb.co.uk")!,
-                    subject: Text(webState.currentTitle),
-                    preview: SharePreview(webState.currentTitle.isEmpty
-                                          ? "London Review of Books"
-                                          : webState.currentTitle)
-                ) {
+                Button {
+                    showingShareSheet = true
+                } label: {
                     Label("Share", systemImage: "square.and.arrow.up")
                 }
                 .disabled(webState.currentURL == nil)
+            }
+        }
+        .sheet(isPresented: $showingShareSheet) {
+            if let url = webState.currentURL {
+                let items: [Any] = webState.currentTitle.isEmpty
+                    ? [url]
+                    : [webState.currentTitle, url]
+                ShareSheet(items: items)
             }
         }
         .confirmationDialog(
